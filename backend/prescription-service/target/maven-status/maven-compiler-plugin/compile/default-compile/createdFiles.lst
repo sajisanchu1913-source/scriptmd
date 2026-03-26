@@ -1,0 +1,5 @@
+com/scriptmd/repository/PrescriptionRepository.class
+com/scriptmd/App.class
+com/scriptmd/model/Prescription.class
+com/scriptmd/controller/PrescriptionController.class
+com/scriptmd/service/PrescriptionService.class

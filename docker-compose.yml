@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: scriptmd-postgres
+    environment:
+      POSTGRES_DB: scriptmd
+      POSTGRES_USER: scriptmd_user
+      POSTGRES_PASSWORD: scriptmd123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: scriptmd-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      JWT_SECRET: scriptmd-secret-key
+      DOCTOR_ACCESS_CODE: SCRIPTMD2026
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: scriptmd
+      DB_USER: scriptmd_user
+      DB_PASSWORD: scriptmd123
+    depends_on:
+      - postgres
+
+  nlp-service:
+    build: ./backend/nlp-service
+    container_name: scriptmd-nlp-service
+    ports:
+      - "8000:8000"
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+
+  prescription-service:
+    build: ./backend/prescription-service
+    container_name: scriptmd-prescription-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/scriptmd
+      SPRING_DATASOURCE_USERNAME: scriptmd_user
+      SPRING_DATASOURCE_PASSWORD: scriptmd123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ./frontend
+    container_name: scriptmd-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+
+volumes:
+  postgres_data:

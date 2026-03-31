@@ -65,3 +65,4 @@ def test_extract_new_fields():
     assert 'vitals' in data
     assert 'follow_up' in data
     assert data['follow_up'] != ''
+

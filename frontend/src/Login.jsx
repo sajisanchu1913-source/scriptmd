@@ -14,7 +14,7 @@ function Login({ onLogin }) {
       setStatus('Loading...');
       if (isRegister) {
         // Register new user
-        const res = await fetch('http://localhost:3000/auth/register', {
+        const res = await fetch('http://13.232.88.58:3000/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password, role, accessCode }),
@@ -28,7 +28,7 @@ function Login({ onLogin }) {
         }
       } else {
         // Login existing user
-        const res = await fetch('http://localhost:3000/auth/login', {
+        const res = await fetch('http://13.232.88.58:3000/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),

@@ -190,4 +190,4 @@ conn.close()
 print("")
 print("Successfully seeded 10,000 prescriptions!")
 print("10 doctors, 500 patients, 50 conditions, realistic seasonal patterns")
-print("Now connect Tableau to PostgreSQL and build your dashboards!")
+print("Now connect Tableau to PostgreSQL and build your dashboards!")3

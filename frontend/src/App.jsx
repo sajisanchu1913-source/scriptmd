@@ -37,7 +37,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch('http://localhost:3000/auth/verify', {
+    fetch('http://13.232.88.58:3000/auth/verify', {
       headers: { 'Authorization': 'Bearer ' + token }
     })
       .then(res => res.json())
@@ -70,9 +70,9 @@ function App() {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': 'Bearer ' + token };
       const [presRes, vitalsRes, msgRes] = await Promise.all([
-        fetch(`http://localhost:3000/patients/${id}/prescriptions`, { headers }),
-        fetch(`http://localhost:3000/patients/${id}/vitals`, { headers }),
-        fetch(`http://localhost:3000/messages/${id}`, { headers })
+        fetch(`http://13.232.88.58:3000/patients/${id}/prescriptions`, { headers }),
+        fetch(`http://13.232.88.58:3000/patients/${id}/vitals`, { headers }),
+        fetch(`http://13.232.88.58:3000/messages/${id}`, { headers })
       ]);
       const [presData, vitalsData, msgData] = await Promise.all([
         presRes.json(), vitalsRes.json(), msgRes.json()
@@ -89,7 +89,7 @@ function App() {
     if (name.length < 2) { setPatientResults([]); return; }
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3000/patients/search?name=${name}`, {
+      const res = await fetch(`http://13.232.88.58:3000/patients/search?name=${name}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       setPatientResults(await res.json());
@@ -106,7 +106,7 @@ function App() {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch('http://localhost:3000/patients', {
+      const res = await fetch('http://13.232.88.58:3000/patients', {
         method: 'POST', headers,
         body: JSON.stringify(newPatientForm)
       });
@@ -127,7 +127,7 @@ function App() {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch(`http://localhost:3000/patients/${selectedPatient.id}/vitals`, {
+      const res = await fetch(`http://13.232.88.58:3000/patients/${selectedPatient.id}/vitals`, {
         method: 'POST', headers,
         body: JSON.stringify(vitalsForm)
       });
@@ -172,7 +172,7 @@ function App() {
   const sendToExtract = async (text) => {
     try {
       setStatus('Extracting medical info...');
-      const res = await fetch('http://localhost:3000/extract', {
+      const res = await fetch('http://13.232.88.58:3000/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -201,7 +201,7 @@ function App() {
       setStatus('Saving...');
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch('http://localhost:3000/prescription', {
+      const res = await fetch('http://13.232.88.58:3000/prescription', {
         method: 'POST', headers,
         body: JSON.stringify({
           patientName: selectedPatient.name,
@@ -422,7 +422,7 @@ function App() {
           if (newPass !== confirmPass) { alert('Passwords do not match!'); return; }
           if (newPass.length < 6) { alert('Password must be at least 6 characters!'); return; }
           const token = localStorage.getItem('token');
-          const res = await fetch('http://localhost:3000/auth/change-password', {
+          const res = await fetch('http://13.232.88.58:3000/auth/change-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({ newPassword: newPass })
@@ -680,7 +680,7 @@ function App() {
           const msg = document.getElementById('doctorMessage').value;
           if (!msg.trim()) return;
           const headers = getAuthHeaders();
-          const res = await fetch('http://localhost:3000/messages', {
+          const res = await fetch('http://13.232.88.58:3000/messages', {
             method: 'POST', headers,
             body: JSON.stringify({ patientId: selectedPatient.id, message: msg })
           });

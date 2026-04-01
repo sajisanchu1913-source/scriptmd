@@ -299,5 +299,51 @@ app.post('/auth/change-password', authenticateToken, async (req, res) => {
     res.json({ message: 'Password updated!' });
   } catch (error) { res.status(500).json({ message: error.message }); }
 });
+// ROUTE: Analytics
+app.get('/analytics', authenticateToken, async (req, res) => {
+  try {
+    const [prescriptionsOverTime, topMedicines, topSymptoms, doctorPerformance] = await Promise.all([
+      pool.query(`
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM prescriptions
+        WHERE created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `),
+      pool.query(`
+        SELECT medicine, COUNT(*) as count
+        FROM prescriptions
+        WHERE medicine IS NOT NULL AND medicine != ''
+        GROUP BY medicine
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      pool.query(`
+        SELECT symptoms, COUNT(*) as count
+        FROM prescriptions
+        WHERE symptoms IS NOT NULL AND symptoms != ''
+        GROUP BY symptoms
+        ORDER BY count DESC
+        LIMIT 8
+      `),
+      pool.query(`
+        SELECT doctor_name, 
+               COUNT(*) as total_prescriptions,
+               COUNT(DISTINCT patient_id) as unique_patients
+        FROM prescriptions
+        WHERE doctor_name IS NOT NULL
+        GROUP BY doctor_name
+        ORDER BY total_prescriptions DESC
+      `)
+    ]);
+
+    res.json({
+      prescriptionsOverTime: prescriptionsOverTime.rows,
+      topMedicines: topMedicines.rows,
+      topSymptoms: topSymptoms.rows,
+      doctorPerformance: doctorPerformance.rows
+    });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('API Gateway running on http://localhost:' + PORT));

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import './App.css';
 import Login from './Login';
 
@@ -25,6 +26,8 @@ function App() {
   const [vitalsForm, setVitalsForm] = useState({ blood_pressure: '', temperature: '', heart_rate: '', weight: '', height: '', notes: '' });
   const [newPatientForm, setNewPatientForm] = useState({ name: '', email: '', age: '', gender: 'Male', blood_type: 'O+', phone: '' });
   const [tempPassword, setTempPassword] = useState('');
+  const [analytics, setAnalytics] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Patient states
   const [patientHistory, setPatientHistory] = useState([]);
@@ -34,10 +37,12 @@ function App() {
 
   const recognitionRef = useRef(null);
 
+  const API = 'http://localhost:3000';
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch('http://13.232.88.58:3000/auth/verify', {
+    fetch(`${API}/auth/verify`, {
       headers: { 'Authorization': 'Bearer ' + token }
     })
       .then(res => res.json())
@@ -52,6 +57,18 @@ function App() {
       })
       .catch(() => handleLogout());
   }, []);
+
+  const loadAnalytics = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/analytics`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      setAnalytics(data);
+      setShowAnalytics(true);
+    } catch (e) { console.error('Analytics failed'); }
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -70,9 +87,9 @@ function App() {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': 'Bearer ' + token };
       const [presRes, vitalsRes, msgRes] = await Promise.all([
-        fetch(`http://13.232.88.58:3000/patients/${id}/prescriptions`, { headers }),
-        fetch(`http://13.232.88.58:3000/patients/${id}/vitals`, { headers }),
-        fetch(`http://13.232.88.58:3000/messages/${id}`, { headers })
+        fetch(`${API}/patients/${id}/prescriptions`, { headers }),
+        fetch(`${API}/patients/${id}/vitals`, { headers }),
+        fetch(`${API}/messages/${id}`, { headers })
       ]);
       const [presData, vitalsData, msgData] = await Promise.all([
         presRes.json(), vitalsRes.json(), msgRes.json()
@@ -89,7 +106,7 @@ function App() {
     if (name.length < 2) { setPatientResults([]); return; }
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://13.232.88.58:3000/patients/search?name=${name}`, {
+      const res = await fetch(`${API}/patients/search?name=${name}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       setPatientResults(await res.json());
@@ -106,7 +123,7 @@ function App() {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch('http://13.232.88.58:3000/patients', {
+      const res = await fetch(`${API}/patients`, {
         method: 'POST', headers,
         body: JSON.stringify(newPatientForm)
       });
@@ -127,7 +144,7 @@ function App() {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch(`http://13.232.88.58:3000/patients/${selectedPatient.id}/vitals`, {
+      const res = await fetch(`${API}/patients/${selectedPatient.id}/vitals`, {
         method: 'POST', headers,
         body: JSON.stringify(vitalsForm)
       });
@@ -172,7 +189,7 @@ function App() {
   const sendToExtract = async (text) => {
     try {
       setStatus('Extracting medical info...');
-      const res = await fetch('http://13.232.88.58:3000/extract', {
+      const res = await fetch(`${API}/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -201,7 +218,7 @@ function App() {
       setStatus('Saving...');
       const headers = getAuthHeaders();
       if (!headers) return;
-      const res = await fetch('http://13.232.88.58:3000/prescription', {
+      const res = await fetch(`${API}/prescription`, {
         method: 'POST', headers,
         body: JSON.stringify({
           patientName: selectedPatient.name,
@@ -232,10 +249,8 @@ function App() {
 
   // ── PATIENT PORTAL ──
   if (userRole === 'patient') {
-    const tabs = ['dashboard', 'prescriptions', 'vitals', 'medications', 'messages'];
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a' }}>
-        {/* Sidebar */}
         <div style={{ width: '220px', background: '#111', borderRight: '1px solid #222', padding: '20px 0' }}>
           <div style={{ padding: '0 20px 20px', borderBottom: '1px solid #222' }}>
             <h2 style={{ color: '#4caf50', margin: 0 }}>ScriptMD 💊</h2>
@@ -249,26 +264,22 @@ function App() {
             { id: 'messages', icon: '💬', label: 'Messages' },
             { id: 'settings', icon: '⚙️', label: 'Settings' },
           ].map(tab => (
-            <div
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+            <div key={tab.id} onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: '12px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
                 background: activeTab === tab.id ? '#1a1a1a' : 'transparent',
                 borderLeft: activeTab === tab.id ? '3px solid #4caf50' : '3px solid transparent',
                 color: activeTab === tab.id ? '#fff' : '#888',
-              }}
-            >
+              }}>
               <span>{tab.icon}</span>
               <span style={{ fontSize: '14px' }}>{tab.label}</span>
             </div>
           ))}
-          <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#f44336', marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#f44336', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span>🚪</span><span style={{ fontSize: '14px' }}>Logout</span>
           </div>
         </div>
 
-        {/* Main Content */}
         <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
           {activeTab === 'dashboard' && (
             <div>
@@ -287,7 +298,6 @@ function App() {
                   </div>
                 ))}
               </div>
-              {/* Recent prescriptions */}
               <div style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '20px' }}>
                 <h3 style={{ color: '#fff', marginBottom: '16px' }}>Recent Prescriptions</h3>
                 {patientHistory.slice(0, 3).map((rx, i) => (
@@ -296,7 +306,7 @@ function App() {
                       <div style={{ color: '#fff', fontWeight: 'bold' }}>{rx.medicine}</div>
                       <div style={{ color: '#888', fontSize: '12px' }}>{rx.symptoms}</div>
                     </div>
-                    <div style={{ color: '#888', fontSize: '12px' }}>{new Date(rx.createdAt).toLocaleDateString()}</div>
+                    <div style={{ color: '#888', fontSize: '12px' }}>{new Date(rx.createdAt || rx.created_at).toLocaleDateString()}</div>
                   </div>
                 ))}
               </div>
@@ -312,14 +322,13 @@ function App() {
                   <div key={i} style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                       <h3 style={{ color: '#4caf50', margin: 0 }}>{rx.medicine}</h3>
-                      <span style={{ color: '#888', fontSize: '12px' }}>{new Date(rx.createdAt).toLocaleDateString()}</span>
+                      <span style={{ color: '#888', fontSize: '12px' }}>{new Date(rx.createdAt || rx.created_at).toLocaleDateString()}</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                       <div><span style={{ color: '#888', fontSize: '12px' }}>Symptoms</span><p style={{ color: '#fff', margin: '2px 0' }}>{rx.symptoms}</p></div>
-                      <div><span style={{ color: '#888', fontSize: '12px' }}>Doctor</span><p style={{ color: '#fff', margin: '2px 0' }}>{rx.doctorName|| rx.doctor_name || 'Not specified'}</p></div>
+                      <div><span style={{ color: '#888', fontSize: '12px' }}>Doctor</span><p style={{ color: '#fff', margin: '2px 0' }}>{rx.doctorName || rx.doctor_name || 'Not specified'}</p></div>
                       <div><span style={{ color: '#888', fontSize: '12px' }}>Duration</span><p style={{ color: '#fff', margin: '2px 0' }}>{rx.duration}</p></div>
                       <div><span style={{ color: '#888', fontSize: '12px' }}>Frequency</span><p style={{ color: '#fff', margin: '2px 0' }}>{rx.frequency || 'Not specified'}</p></div>
-                      <span style={{ color: '#888', fontSize: '12px' }}>{new Date(rx.createdAt || rx.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 ))
@@ -367,9 +376,7 @@ function App() {
                   <div style={{ width: '40px', height: '40px', background: '#1a3a1a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>💊</div>
                   <div>
                     <div style={{ color: '#fff', fontWeight: 'bold' }}>{med}</div>
-                    <div style={{ color: '#888', fontSize: '12px' }}>
-                      Prescribed {patientHistory.filter(rx => rx.medicine === med).length} time(s)
-                    </div>
+                    <div style={{ color: '#888', fontSize: '12px' }}>Prescribed {patientHistory.filter(rx => rx.medicine === med).length} time(s)</div>
                   </div>
                 </div>
               ))}
@@ -392,53 +399,41 @@ function App() {
               }
             </div>
           )}
+
           {activeTab === 'settings' && (
-  <div>
-    <h1 style={{ color: '#fff', marginBottom: '24px' }}>Settings ⚙️</h1>
-    <div style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '24px', maxWidth: '400px' }}>
-      <h3 style={{ color: '#fff', marginBottom: '16px' }}>Change Password</h3>
-      <div style={{ marginBottom: '12px' }}>
-        <label style={{ color: '#888', fontSize: '12px' }}>New Password</label>
-        <input
-          type='password'
-          id='newPassword'
-          placeholder='Enter new password'
-          style={{ width: '100%', padding: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '4px' }}
-        />
-      </div>
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ color: '#888', fontSize: '12px' }}>Confirm Password</label>
-        <input
-          type='password'
-          id='confirmPassword'
-          placeholder='Confirm new password'
-          style={{ width: '100%', padding: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '4px' }}
-        />
-      </div>
-      <button
-        onClick={async () => {
-          const newPass = document.getElementById('newPassword').value;
-          const confirmPass = document.getElementById('confirmPassword').value;
-          if (newPass !== confirmPass) { alert('Passwords do not match!'); return; }
-          if (newPass.length < 6) { alert('Password must be at least 6 characters!'); return; }
-          const token = localStorage.getItem('token');
-          const res = await fetch('http://13.232.88.58:3000/auth/change-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ newPassword: newPass })
-          });
-          const data = await res.json();
-          if (data.message === 'Password updated!') {
-            alert('Password changed successfully!');
-          } else { alert('Error: ' + data.message); }
-        }}
-        style={{ width: '100%', padding: '10px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-      >
-        Update Password
-      </button>
-    </div>
-  </div>
-)}
+            <div>
+              <h1 style={{ color: '#fff', marginBottom: '24px' }}>Settings ⚙️</h1>
+              <div style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '24px', maxWidth: '400px' }}>
+                <h3 style={{ color: '#fff', marginBottom: '16px' }}>Change Password</h3>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ color: '#888', fontSize: '12px' }}>New Password</label>
+                  <input type='password' id='newPassword' placeholder='Enter new password'
+                    style={{ width: '100%', padding: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '4px' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ color: '#888', fontSize: '12px' }}>Confirm Password</label>
+                  <input type='password' id='confirmPassword' placeholder='Confirm new password'
+                    style={{ width: '100%', padding: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '4px' }} />
+                </div>
+                <button onClick={async () => {
+                  const newPass = document.getElementById('newPassword').value;
+                  const confirmPass = document.getElementById('confirmPassword').value;
+                  if (newPass !== confirmPass) { alert('Passwords do not match!'); return; }
+                  if (newPass.length < 6) { alert('Password must be at least 6 characters!'); return; }
+                  const token = localStorage.getItem('token');
+                  const res = await fetch(`${API}/auth/change-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ newPassword: newPass })
+                  });
+                  const data = await res.json();
+                  alert(data.message === 'Password updated!' ? 'Password changed successfully!' : 'Error: ' + data.message);
+                }} style={{ width: '100%', padding: '10px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  Update Password
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -451,44 +446,115 @@ function App() {
         <h1>ScriptMD 💊</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <p>{userName} · Dashboard</p>
+          <button onClick={loadAnalytics}
+            style={{ padding: '4px 12px', cursor: 'pointer', background: '#1565c0', color: 'white', border: 'none', borderRadius: '4px' }}>
+            📊 Analytics
+          </button>
           <button onClick={handleLogout} style={{ padding: '4px 12px', cursor: 'pointer' }}>Logout</button>
         </div>
       </div>
       <div className='status-bar'>Status: {status}</div>
 
       {tempPassword && selectedPatient && (
-  <div style={{ background: '#1a3a1a', border: '1px solid #4caf50', borderRadius: '8px', padding: '16px', margin: '8px 16px' }}>
-    <strong style={{ color: '#4caf50', fontSize: '16px' }}>✅ New Patient Created Successfully!</strong>
-    <div style={{ marginTop: '12px', background: '#111', borderRadius: '8px', padding: '12px' }}>
-      <p style={{ color: '#888', margin: '0 0 4px', fontSize: '12px' }}>Share these login credentials with the patient:</p>
-      <p style={{ color: '#fff', margin: '4px 0' }}>
-        📧 <strong>Email:</strong> {selectedPatient.email}
-      </p>
-      <p style={{ color: '#fff', margin: '4px 0' }}>
-        🔑 <strong>Temporary Password:</strong> {tempPassword}
-      </p>
-      <p style={{ color: '#888', margin: '8px 0 0', fontSize: '12px' }}>
-        Patient should go to localhost:5173 → click Login → use these credentials
-      </p>3
-    </div>
-    <button
-      onClick={() => setTempPassword('')}
-      style={{ marginTop: '8px', padding: '4px 10px', background: 'transparent', color: '#888', border: '1px solid #333', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-    >
-      Dismiss
-    </button>
-  </div>
-)}
+        <div style={{ background: '#1a3a1a', border: '1px solid #4caf50', borderRadius: '8px', padding: '16px', margin: '8px 16px' }}>
+          <strong style={{ color: '#4caf50', fontSize: '16px' }}>✅ New Patient Created Successfully!</strong>
+          <div style={{ marginTop: '12px', background: '#111', borderRadius: '8px', padding: '12px' }}>
+            <p style={{ color: '#888', margin: '0 0 4px', fontSize: '12px' }}>Share these login credentials with the patient:</p>
+            <p style={{ color: '#fff', margin: '4px 0' }}>📧 <strong>Email:</strong> {selectedPatient.email}</p>
+            <p style={{ color: '#fff', margin: '4px 0' }}>🔑 <strong>Temporary Password:</strong> {tempPassword}</p>
+          </div>
+          <button onClick={() => setTempPassword('')}
+            style={{ marginTop: '8px', padding: '4px 10px', background: 'transparent', color: '#888', border: '1px solid #333', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {showAnalytics && analytics && (
+        <div style={{ padding: '24px', background: '#111', borderRadius: '12px', margin: '8px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ color: '#fff', margin: 0 }}>📊 Analytics Dashboard</h2>
+            <button onClick={() => setShowAnalytics(false)}
+              style={{ background: 'transparent', color: '#888', border: '1px solid #333', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer' }}>
+              Close
+            </button>
+          </div>
+
+          {/* Prescriptions Over Time */}
+          <div style={{ marginBottom: '32px' }}>
+            <h3 style={{ color: '#2196f3', marginBottom: '16px', textAlign: 'center' }}>📈 Prescriptions Over Time</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analytics.prescriptionsOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="date" stroke="#888" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" 
+                tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                <YAxis stroke="#888" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #333', color: '#fff' }} />
+                <Line type="monotone" dataKey="count" stroke="#2196f3" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top Medicines */}
+          <div style={{ marginBottom: '32px' }}>
+            <h3 style={{ color: '#4caf50', marginBottom: '16px', textAlign: 'center' }}>💊 Top 10 Medicines</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.topMedicines} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="medicine" stroke="#888" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" />
+                <YAxis stroke="#888" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #333', color: '#fff' }} />
+                <Bar dataKey="count" fill="#4caf50" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top Symptoms Bar Chart */}
+<div style={{ marginBottom: '32px' }}>
+  <h3 style={{ color: '#ff9800', marginBottom: '16px', textAlign: 'center' }}>🏥 Top Symptoms</h3>
+  <ResponsiveContainer width="100%" height={300}>
+    <BarChart data={analytics.topSymptoms} layout="vertical" margin={{ top: 5, right: 60, left: 160, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+      <XAxis type="number" stroke="#888" tick={{ fontSize: 11 }} />
+      <YAxis type="category" dataKey="symptoms" stroke="#888" tick={{ fontSize: 11 }} width={150} />
+      <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #333', color: '#fff' }} />
+      <Bar dataKey="count" fill="#ff9800" radius={[0, 4, 4, 0]} />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
+
+          {/* Doctor Performance */}
+          <div>
+            <h3 style={{ color: '#2196f3', marginBottom: '16px', textAlign: 'center' }}>👨‍⚕️ Doctor Performance</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #333' }}>
+                  <th style={{ color: '#888', padding: '8px', textAlign: 'left', fontSize: '13px' }}>Doctor</th>
+                  <th style={{ color: '#888', padding: '8px', textAlign: 'left', fontSize: '13px' }}>Prescriptions</th>
+                  <th style={{ color: '#888', padding: '8px', textAlign: 'left', fontSize: '13px' }}>Unique Patients</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.doctorPerformance.map((d, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #222' }}>
+                    <td style={{ color: '#fff', padding: '8px', fontSize: '13px' }}>{d.doctor_name}</td>
+                    <td style={{ color: '#4caf50', padding: '8px', fontSize: '13px' }}>{d.total_prescriptions}</td>
+                    <td style={{ color: '#2196f3', padding: '8px', fontSize: '13px' }}>{d.unique_patients}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className='grid'>
-        {/* CARD 1 — Patient Search + Add */}
+        {/* CARD 1 — Patient Search */}
         <div className='card'>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2>Patient Search 🔍</h2>
-            <button
-              onClick={() => setShowAddPatient(!showAddPatient)}
-              style={{ padding: '4px 10px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-            >
+            <button onClick={() => setShowAddPatient(!showAddPatient)}
+              style={{ padding: '4px 10px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
               + New Patient
             </button>
           </div>
@@ -504,12 +570,9 @@ function App() {
               ].map(field => (
                 <div key={field.key} style={{ marginBottom: '8px' }}>
                   <label style={{ color: '#888', fontSize: '12px' }}>{field.label}</label>
-                  <input
-                    type={field.type}
-                    value={newPatientForm[field.key]}
+                  <input type={field.type} value={newPatientForm[field.key]}
                     onChange={e => setNewPatientForm({ ...newPatientForm, [field.key]: e.target.value })}
-                    style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '2px' }}
-                  />
+                    style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '2px' }} />
                 </div>
               ))}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -528,7 +591,8 @@ function App() {
                   </select>
                 </div>
               </div>
-              <button onClick={addNewPatient} style={{ width: '100%', padding: '8px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '8px' }}>
+              <button onClick={addNewPatient}
+                style={{ width: '100%', padding: '8px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '8px' }}>
                 Add Patient
               </button>
             </div>
@@ -536,13 +600,9 @@ function App() {
 
           <div className='field'>
             <label>Search Existing Patient</label>
-            <input
-              type='text'
-              placeholder='Type patient name...'
-              value={patientSearch}
+            <input type='text' placeholder='Type patient name...' value={patientSearch}
               onChange={e => searchPatients(e.target.value)}
-              style={{ width: '100%', padding: '8px', marginTop: '4px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px' }}
-            />
+              style={{ width: '100%', padding: '8px', marginTop: '4px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px' }} />
           </div>
           {patientResults.length > 0 && (
             <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '4px', marginTop: '4px' }}>
@@ -559,10 +619,8 @@ function App() {
             <div style={{ marginTop: '8px', padding: '8px', background: '#0a3d0a', borderRadius: '4px' }}>
               <div style={{ color: '#4caf50', fontWeight: 'bold' }}>✅ {selectedPatient.name}</div>
               <div style={{ fontSize: '12px', color: '#aaa' }}>Age: {selectedPatient.age} | {selectedPatient.gender} | Blood: {selectedPatient.blood_type}</div>
-              <button
-                onClick={() => setShowVitals(!showVitals)}
-                style={{ marginTop: '8px', padding: '4px 8px', background: '#1565c0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-              >
+              <button onClick={() => setShowVitals(!showVitals)}
+                style={{ marginTop: '8px', padding: '4px 8px', background: '#1565c0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
                 🩺 Record Vitals
               </button>
             </div>
@@ -580,23 +638,15 @@ function App() {
                 ].map(field => (
                   <div key={field.key}>
                     <label style={{ color: '#888', fontSize: '12px' }}>{field.label}</label>
-                    <input
-                      type='text'
-                      placeholder={field.placeholder}
-                      value={vitalsForm[field.key]}
+                    <input type='text' placeholder={field.placeholder} value={vitalsForm[field.key]}
                       onChange={e => setVitalsForm({ ...vitalsForm, [field.key]: e.target.value })}
-                      style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '2px' }}
-                    />
+                      style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '2px' }} />
                   </div>
                 ))}
               </div>
-              <input
-                type='text'
-                placeholder='Notes...'
-                value={vitalsForm.notes}
+              <input type='text' placeholder='Notes...' value={vitalsForm.notes}
                 onChange={e => setVitalsForm({ ...vitalsForm, notes: e.target.value })}
-                style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '8px' }}
-              />
+                style={{ width: '100%', padding: '6px', background: '#111', color: 'white', border: '1px solid #333', borderRadius: '4px', marginTop: '8px' }} />
               <button onClick={saveVitals}
                 style={{ width: '100%', padding: '8px', background: '#1565c0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '8px' }}>
                 Save Vitals
@@ -608,10 +658,8 @@ function App() {
         {/* CARD 2 — Voice Recording */}
         <div className='card'>
           <h2>Voice Recording 🎤</h2>
-          <button
-            className={isRecording ? 'btn-stop' : 'btn-record'}
-            onClick={isRecording ? handleStopAndExtract : startRecording}
-          >
+          <button className={isRecording ? 'btn-stop' : 'btn-record'}
+            onClick={isRecording ? handleStopAndExtract : startRecording}>
             {isRecording ? '⏹ Stop Recording' : '🎤 Start Recording'}
           </button>
           <div className='transcription-box'>
@@ -630,79 +678,51 @@ function App() {
             </div>
           </div>
           {prescription.diagnosis && (
-            <div className='field'><label>Diagnosis</label>
-              <div className='field-value'>{prescription.diagnosis}</div>
-            </div>
+            <div className='field'><label>Diagnosis</label><div className='field-value'>{prescription.diagnosis}</div></div>
           )}
-          <div className='field'><label>Medicine</label>
-            <div className='field-value'>{prescription.medicine || 'No medicine yet'}</div>
-          </div>
-          <div className='field'><label>Duration</label>
-            <div className='field-value'>{prescription.duration || 'No duration yet'}</div>
-          </div>
-          <div className='field'><label>Frequency</label>
-            <div className='field-value'>{prescription.frequency || 'No frequency yet'}</div>
-          </div>
+          <div className='field'><label>Medicine</label><div className='field-value'>{prescription.medicine || 'No medicine yet'}</div></div>
+          <div className='field'><label>Duration</label><div className='field-value'>{prescription.duration || 'No duration yet'}</div></div>
+          <div className='field'><label>Frequency</label><div className='field-value'>{prescription.frequency || 'No frequency yet'}</div></div>
           {prescription.follow_up && (
-            <div className='field'><label>Follow Up</label>
-              <div className='field-value'>{prescription.follow_up}</div>
-            </div>
+            <div className='field'><label>Follow Up</label><div className='field-value'>{prescription.follow_up}</div></div>
           )}
           {prescription.doctor_notes && (
-            <div className='field'><label>Doctor Notes</label>
-              <div className='field-value'>{prescription.doctor_notes}</div>
-            </div>
+            <div className='field'><label>Doctor Notes</label><div className='field-value'>{prescription.doctor_notes}</div></div>
           )}
           <button className='btn-save' onClick={handleSave}>💾 Save Prescription</button>
         </div>
 
-        {/* CARD 4 — Recent */}
         {/* CARD 4 — Message Patient */}
-<div className='card'>
-  <h2>Message Patient 💬</h2>
-  {selectedPatient ? (
-    <div>
-      <p style={{ color: '#888', fontSize: '13px', marginBottom: '8px' }}>
-        Sending to: <strong style={{ color: '#4caf50' }}>{selectedPatient.name}</strong>
-      </p>
-      <textarea
-        placeholder='Type a message to the patient...'
-        id='doctorMessage'
-        rows={4}
-        style={{
-          width: '100%', padding: '8px', background: '#1a1a1a',
-          color: 'white', border: '1px solid #333', borderRadius: '4px',
-          resize: 'vertical', fontFamily: 'Arial'
-        }}
-      />
-      <button
-        onClick={async () => {
-          const msg = document.getElementById('doctorMessage').value;
-          if (!msg.trim()) return;
-          const headers = getAuthHeaders();
-          const res = await fetch('http://13.232.88.58:3000/messages', {
-            method: 'POST', headers,
-            body: JSON.stringify({ patientId: selectedPatient.id, message: msg })
-          });
-          const data = await res.json();
-          if (data.id) {
-            setStatus('Message sent to ' + selectedPatient.name + ' ✅');
-            document.getElementById('doctorMessage').value = '';
-          }
-        }}
-        style={{
-          width: '100%', padding: '8px', background: '#1565c0',
-          color: 'white', border: 'none', borderRadius: '4px',
-          cursor: 'pointer', marginTop: '8px'
-        }}
-      >
-        Send Message 📤
-      </button>
-    </div>
-  ) : (
-    <p style={{ color: '#888' }}>Select a patient first to send a message</p>
-  )}
-</div>
+        <div className='card'>
+          <h2>Message Patient 💬</h2>
+          {selectedPatient ? (
+            <div>
+              <p style={{ color: '#888', fontSize: '13px', marginBottom: '8px' }}>
+                Sending to: <strong style={{ color: '#4caf50' }}>{selectedPatient.name}</strong>
+              </p>
+              <textarea placeholder='Type a message to the patient...' id='doctorMessage' rows={4}
+                style={{ width: '100%', padding: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333', borderRadius: '4px', resize: 'vertical', fontFamily: 'Arial' }} />
+              <button onClick={async () => {
+                const msg = document.getElementById('doctorMessage').value;
+                if (!msg.trim()) return;
+                const headers = getAuthHeaders();
+                const res = await fetch(`${API}/messages`, {
+                  method: 'POST', headers,
+                  body: JSON.stringify({ patientId: selectedPatient.id, message: msg })
+                });
+                const data = await res.json();
+                if (data.id) {
+                  setStatus('Message sent to ' + selectedPatient.name + ' ✅');
+                  document.getElementById('doctorMessage').value = '';
+                }
+              }} style={{ width: '100%', padding: '8px', background: '#1565c0', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '8px' }}>
+                Send Message 📤
+              </button>
+            </div>
+          ) : (
+            <p style={{ color: '#888' }}>Select a patient first to send a message</p>
+          )}
+        </div>
       </div>
     </div>
   );
